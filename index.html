@@ -166,6 +166,40 @@
         .hidden { display: none; }
         .feedback-text { font-size: 0.8rem; text-align: center; margin-top: 0.5rem; color: var(--muted-text-color); }
 
+        /* --- HISTORY STYLES --- */
+        #history-list {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 2rem;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .history-item-info {
+            font-size: 1rem;
+        }
+        .history-item-info span {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--muted-text-color);
+        }
+        .history-item .styled-button {
+            width: auto;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+
     </style>
 </head>
 <body>
@@ -175,6 +209,8 @@
 
         <div id="setup-container" class="content-padding">
             <h2>Quiz Setup</h2>
+
+            <button id="show-history-btn" class="styled-button tertiary" style="margin-bottom: 1rem;">View Quiz History</button>
             
             <div>
                 <h3>Option 1: Load from File</h3>
@@ -240,6 +276,22 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                 </div>
             </div>
         </div>
+
+        <div id="history-container" class="hidden content-padding">
+            <h2>Quiz History</h2>
+            <div id="history-list"></div>
+            <div class="quiz-actions" style="flex-direction: column; gap: 1rem;">
+                <button id="clear-history-btn" class="styled-button tertiary">Clear History</button>
+                <button id="back-to-setup-from-history-btn" class="styled-button">Back to Setup</button>
+            </div>
+        </div>
+
+        <div id="history-details-container" class="hidden content-padding">
+            <div id="history-detailed-results"></div>
+            <div class="quiz-actions">
+                <button id="back-to-history-btn" class="styled-button">Back to History</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -251,6 +303,7 @@ Provide the output in a raw JSON array format. Each object in the array must hav
             const startFromTextBtn = document.getElementById('start-from-text-btn');
             const copyPromptBtn = document.getElementById('copy-prompt-btn');
             const llmPromptText = document.getElementById('llm-prompt-text');
+            const showHistoryBtn = document.getElementById('show-history-btn');
             
             const quizContainer = document.getElementById('quiz-container');
             const quizForm = document.getElementById('quiz-form');
@@ -262,23 +315,26 @@ Provide the output in a raw JSON array format. Each object in the array must hav
             const summaryTableContainer = document.getElementById('summary-table-container');
             const copySummaryBtn = document.getElementById('copy-summary-btn');
             const restartBtn = document.getElementById('restart-btn');
+
+            const historyContainer = document.getElementById('history-container');
+            const historyListDiv = document.getElementById('history-list');
+            const clearHistoryBtn = document.getElementById('clear-history-btn');
+            const backToSetupFromHistoryBtn = document.getElementById('back-to-setup-from-history-btn');
+
+            const historyDetailsContainer = document.getElementById('history-details-container');
+            const historyDetailedResultsDiv = document.getElementById('history-detailed-results');
+            const backToHistoryBtn = document.getElementById('back-to-history-btn');
             
             let currentQuizData = [];
+            let userAnswers = [];
             let summaryForClipboard = '';
+            const QUIZ_HISTORY_KEY = 'professionalQuizHistory';
 
             const indexToLetter = (index) => String.fromCharCode(65 + index);
 
             // --- Core Functions ---
 
-            /**
-             * Universal robust copy function. Prioritizes modern Clipboard API,
-             * but includes a fallback for non-secure contexts (like file://).
-             * @param {string} textToCopy - The text to be copied.
-             * @param {HTMLElement} buttonElement - The button that triggered the copy.
-             * @param {string} originalText - The original text of the button.
-             */
             async function copyTextToClipboard(textToCopy, buttonElement, originalText) {
-                // Modern async clipboard API - requires a secure context (https or localhost)
                 if (navigator.clipboard && window.isSecureContext) {
                     try {
                         await navigator.clipboard.writeText(textToCopy);
@@ -288,10 +344,9 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                         showCopyFeedback(buttonElement, originalText, false);
                     }
                 } else {
-                    // Fallback for insecure contexts (e.g., file://)
                     const textArea = document.createElement("textarea");
                     textArea.value = textToCopy;
-                    textArea.style.position = "fixed"; // Hide element
+                    textArea.style.position = "fixed";
                     textArea.style.opacity = "0";
                     document.body.appendChild(textArea);
                     textArea.focus();
@@ -317,14 +372,10 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                 }, 2500);
             }
             
-            /**
-             * Parses and validates the JSON data string.
-             * @param {string} jsonDataString - The raw JSON string.
-             */
             function handleJsonData(jsonDataString) {
                 try {
                     const data = JSON.parse(jsonDataString);
-                    validateQuizData(data); // Throws an error if invalid
+                    validateQuizData(data);
                     currentQuizData = data;
                     startQuiz();
                 } catch (error) {
@@ -333,10 +384,6 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                 }
             }
             
-            /**
-             * Validates the structure of the parsed quiz data.
-             * @param {Array<Object>} data - The parsed quiz data.
-             */
             function validateQuizData(data) {
                 if (!Array.isArray(data) || data.length === 0) {
                     throw new Error("JSON must be a non-empty array of questions.");
@@ -358,16 +405,18 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                 }
             }
 
-
             function startQuiz() {
                 setupContainer.classList.add('hidden');
                 resultsContainer.classList.add('hidden');
+                historyContainer.classList.add('hidden');
+                historyDetailsContainer.classList.add('hidden');
                 quizContainer.classList.remove('hidden');
                 buildQuiz();
             }
 
             function buildQuiz() {
-                quizForm.innerHTML = ''; // Clear previous quiz
+                quizForm.innerHTML = '';
+                userAnswers = [];
                 currentQuizData.forEach((questionItem, questionIndex) => {
                     const questionBlock = document.createElement('div');
                     questionBlock.className = 'question-block';
@@ -388,14 +437,32 @@ Provide the output in a raw JSON array format. Each object in the array must hav
             }
 
             function showResults() {
-                let score = 0;
-                let detailedResultsHTML = '';
-                let summaryTableHTML = '<table id="summary-table"><thead><tr><th>Q#</th><th>Your Answer</th><th>Correct</th></tr></thead><tbody>';
-                let plainTextSummary = `Quiz Summary:\n`;
-
-                currentQuizData.forEach((item, index) => {
+                userAnswers = [];
+                 currentQuizData.forEach((_, index) => {
                     const selectedOption = document.querySelector(`input[name="question${index}"]:checked`);
-                    const userAnswerText = selectedOption ? selectedOption.value : null;
+                    userAnswers.push(selectedOption ? selectedOption.value : null);
+                });
+
+                const { detailedHTML, summaryTable, plainText, score, total } = generateResultViews(currentQuizData, userAnswers);
+                
+                detailedResultsDiv.innerHTML = `<h2>Your Score: ${score} / ${total} (${((score/total)*100).toFixed(1)}%)</h2>${detailedHTML}`;
+                summaryTableContainer.innerHTML = summaryTable;
+                summaryForClipboard = plainText;
+
+                saveQuizResult(score, total);
+
+                quizContainer.classList.add('hidden');
+                resultsContainer.classList.remove('hidden');
+            }
+
+            function generateResultViews(quizData, answers) {
+                let score = 0;
+                let detailedHTML = '';
+                let summaryTable = '<table id="summary-table"><thead><tr><th>Q#</th><th>Your Answer</th><th>Correct</th></tr></thead><tbody>';
+                let plainText = `Quiz Summary:\n`;
+
+                quizData.forEach((item, index) => {
+                    const userAnswerText = answers[index];
                     const correctAnswerText = item.answer;
                     const isCorrect = userAnswerText === correctAnswerText;
 
@@ -416,10 +483,10 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                         }
                     }
 
-                    summaryTableHTML += `<tr class="${resultBlockClass}"><td>${index + 1}</td><td>${summaryAnswerLetter}</td><td>${correctAnswerLetter}</td></tr>`;
-                    plainTextSummary += `${index + 1}. Your: ${summaryAnswerLetter}, Correct: ${correctAnswerLetter}\n`;
+                    summaryTable += `<tr class="${resultBlockClass}"><td>${index + 1}</td><td>${summaryAnswerLetter}</td><td>${correctAnswerLetter}</td></tr>`;
+                    plainText += `${index + 1}. Your: ${summaryAnswerLetter}, Correct: ${correctAnswerLetter}\n`;
                     
-                    detailedResultsHTML += `
+                    detailedHTML += `
                         <div class="result-block ${resultBlockClass}">
                             <p class="question-text">${index + 1}. ${item.question}</p>
                             <p><strong>Your answer:</strong> ${userAnswerDisplay}</p>
@@ -430,35 +497,90 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                         </div>`;
                 });
 
-                summaryTableHTML += '</tbody></table>';
-                const totalQuestions = currentQuizData.length;
-                const scorePercentage = totalQuestions > 0 ? ((score / totalQuestions) * 100).toFixed(1) : 0;
-                
-                detailedResultsDiv.innerHTML = `<h2>Your Score: ${score} / ${totalQuestions} (${scorePercentage}%)</h2>${detailedResultsHTML}`;
-                summaryTableContainer.innerHTML = summaryTableHTML;
-                summaryForClipboard = plainTextSummary.trim();
-
-                quizContainer.classList.add('hidden');
-                resultsContainer.classList.remove('hidden');
+                summaryTable += '</tbody></table>';
+                return { detailedHTML, summaryTable, plainText: plainText.trim(), score, total: quizData.length };
             }
             
             function restartQuiz() {
                 resultsContainer.classList.add('hidden');
                 quizContainer.classList.add('hidden');
+                historyContainer.classList.add('hidden');
+                historyDetailsContainer.classList.add('hidden');
                 setupContainer.classList.remove('hidden');
                 
-                // Reset state
                 currentQuizData = [];
+                userAnswers = [];
                 jsonInputArea.value = '';
-                fileInput.value = ''; // Reset file input
+                fileInput.value = '';
                 quizForm.innerHTML = '';
+            }
+
+            // --- History Functions ---
+            function getQuizHistory() {
+                return JSON.parse(localStorage.getItem(QUIZ_HISTORY_KEY) || '[]');
+            }
+
+            function saveQuizResult(score, total) {
+                const history = getQuizHistory();
+                const result = {
+                    id: Date.now(),
+                    date: new Date().toLocaleString(),
+                    topic: currentQuizData[0]?.question.substring(0, 30) + '...', // Simple topic
+                    score,
+                    total,
+                    quizData: currentQuizData,
+                    userAnswers
+                };
+                history.unshift(result); // Add to the beginning
+                localStorage.setItem(QUIZ_HISTORY_KEY, JSON.stringify(history));
+            }
+
+            function showHistory() {
+                setupContainer.classList.add('hidden');
+                resultsContainer.classList.add('hidden');
+                historyDetailsContainer.classList.add('hidden');
+                historyContainer.classList.remove('hidden');
+
+                const history = getQuizHistory();
+                if (history.length === 0) {
+                    historyListDiv.innerHTML = '<p style="text-align: center; padding: 2rem;">No quiz history found.</p>';
+                    return;
+                }
+
+                historyListDiv.innerHTML = history.map(item => `
+                    <div class="history-item">
+                        <div class="history-item-info">
+                            <strong>Score: ${item.score}/${item.total}</strong>
+                            <span>${item.date}</span>
+                        </div>
+                        <button class="styled-button secondary view-history-btn" data-history-id="${item.id}">View</button>
+                    </div>
+                `).join('');
+            }
+
+            function viewHistoryItem(historyId) {
+                const history = getQuizHistory();
+                const result = history.find(item => item.id == historyId);
+                if (!result) return;
+
+                const { detailedHTML } = generateResultViews(result.quizData, result.userAnswers);
+                historyDetailedResultsDiv.innerHTML = `<h2>Quiz from ${result.date}</h2>${detailedHTML}`;
+
+                historyContainer.classList.add('hidden');
+                historyDetailsContainer.classList.remove('hidden');
+            }
+
+            function clearHistory() {
+                if (confirm('Are you sure you want to clear all quiz history? This cannot be undone.')) {
+                    localStorage.removeItem(QUIZ_HISTORY_KEY);
+                    showHistory(); // Refresh the view
+                }
             }
 
             // --- Event Listeners ---
             fileInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
-
                 const reader = new FileReader();
                 reader.onload = (e) => handleJsonData(e.target.result);
                 reader.onerror = () => alert('Error reading the file.');
@@ -481,15 +603,21 @@ Provide the output in a raw JSON array format. Each object in the array must hav
             });
 
             submitBtn.addEventListener('click', showResults);
-            
             restartBtn.addEventListener('click', restartQuiz);
 
-            copyPromptBtn.addEventListener('click', () => {
-                copyTextToClipboard(llmPromptText.textContent, copyPromptBtn, 'Copy AI Prompt');
-            });
+            copyPromptBtn.addEventListener('click', () => copyTextToClipboard(llmPromptText.textContent, copyPromptBtn, 'Copy AI Prompt'));
+            copySummaryBtn.addEventListener('click', () => copyTextToClipboard(summaryForClipboard, copySummaryBtn, 'Copy Simple Summary'));
 
-            copySummaryBtn.addEventListener('click', () => {
-                copyTextToClipboard(summaryForClipboard, copySummaryBtn, 'Copy Simple Summary');
+            showHistoryBtn.addEventListener('click', showHistory);
+            backToSetupFromHistoryBtn.addEventListener('click', restartQuiz);
+            clearHistoryBtn.addEventListener('click', clearHistory);
+            backToHistoryBtn.addEventListener('click', showHistory);
+
+            historyListDiv.addEventListener('click', (event) => {
+                if (event.target.classList.contains('view-history-btn')) {
+                    const historyId = event.target.getAttribute('data-history-id');
+                    viewHistoryItem(historyId);
+                }
             });
         });
     </script>
