@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Quiz Generator</title>
+    <style>
+        /* --- PROFESSIONAL STYLES --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;600&display=swap');
+
+        :root {
+            --primary-color: #005f73; /* Dark Teal */
+            --secondary-color: #0a9396; /* Lighter Teal */
+            --accent-color: #94d2bd; /* Pale Aqua */
+            --background-color: #f8f9fa; /* Light Gray */
+            --surface-color: #ffffff;
+            --text-color: #212529; /* Dark Gray */
+            --muted-text-color: #6c757d;
+            --border-color: #dee2e6;
+            --correct-color: #d1e7dd; /* Bootstrap Success Light */
+            --correct-border: #0f5132; /* Bootstrap Success Dark */
+            --incorrect-color: #f8d7da; /* Bootstrap Danger Light */
+            --incorrect-border: #842029; /* Bootstrap Danger Dark */
+            --border-radius: 8px;
+            --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .main-wrapper {
+            background-color: var(--surface-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 100%;
+            max-width: 700px;
+            overflow: hidden;
+        }
+        
+        .content-padding { padding: 2rem; }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1.5rem 2rem;
+            text-align: center;
+        }
+        header h1 { margin: 0; font-size: 1.75rem; }
+
+        h2, h3 { color: var(--primary-color); text-align: center; }
+        h2 { font-size: 1.5rem; margin-bottom: 2rem; }
+        h3 { font-size: 1.25rem; margin-bottom: 1.5rem; color: var(--secondary-color); }
+
+        .separator {
+            text-align: center; font-weight: 500; color: var(--muted-text-color); margin: 2rem 0;
+            display: flex; align-items: center; gap: 1em;
+        }
+        .separator::before, .separator::after {
+            content: ''; flex: 1; border-bottom: 1px solid var(--border-color);
+        }
+        
+        /* --- BUTTONS & INPUTS --- */
+        .styled-button {
+            display: inline-block; width: 100%; box-sizing: border-box;
+            padding: 12px 24px; font-size: 1rem; font-weight: 600;
+            color: white; background-color: var(--primary-color);
+            border: none; border-radius: var(--border-radius);
+            cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease;
+            text-align: center;
+        }
+        .styled-button:hover { background-color: #004c5a; }
+        .styled-button:active { transform: scale(0.98); }
+        .styled-button.secondary { background-color: var(--secondary-color); }
+        .styled-button.secondary:hover { background-color: #087a7d; }
+        .styled-button.tertiary { background-color: #6c757d; }
+        .styled-button.tertiary:hover { background-color: #5a6268; }
+
+        #file-input-label { display: block; }
+        
+        textarea {
+            width: 100%; min-height: 180px; box-sizing: border-box;
+            border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            padding: 12px; font-family: 'Source Code Pro', monospace;
+            font-size: 0.9rem; resize: vertical; margin-top: 1rem;
+        }
+        textarea:focus { outline: 2px solid var(--accent-color); border-color: var(--secondary-color); }
+
+        /* --- INSTRUCTIONS & PROMPT --- */
+        .instructions-box {
+            margin-top: 2rem; border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+        .instructions-box summary {
+            font-weight: 600; font-size: 1.1em; color: var(--secondary-color);
+            cursor: pointer; list-style: none; padding: 1rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .instructions-box summary::-webkit-details-marker { display: none; }
+        .instructions-box summary::after { content: '+'; font-size: 1.5em; line-height: 1; }
+        .instructions-box[open] > summary { border-bottom: 1px solid var(--border-color); }
+        .instructions-box[open] > summary::after { content: '−'; }
+        .instructions-box-content { padding: 1rem; }
+        
+        pre {
+            background-color: #e9ecef; color: #343a40; padding: 1rem;
+            border-radius: var(--border-radius); white-space: pre-wrap;
+            word-wrap: break-word; font-size: 0.85em; max-height: 250px;
+            overflow-y: auto; font-family: 'Source Code Pro', monospace;
+        }
+        
+        /* --- QUIZ & RESULTS --- */
+        .question-block {
+            margin-bottom: 1.5rem; border-left: 4px solid var(--accent-color);
+            padding-left: 1.5rem; background-color: #fdfdff;
+        }
+        .question-text { font-weight: 600; font-size: 1.1em; margin-bottom: 1rem; }
+        .options-list { list-style: none; padding: 0; margin: 0; }
+        .options-list li {
+            background-color: #f8f9fa; border: 1px solid var(--border-color);
+            border-radius: var(--border-radius); margin-bottom: 0.75rem;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .options-list li:hover { background-color: #e9ecef; }
+        .options-list label {
+            display: flex; align-items: center; cursor: pointer; padding: 12px;
+        }
+        .options-list input[type="radio"] { margin-right: 12px; accent-color: var(--primary-color); width: 1.2em; height: 1.2em; }
+        
+        .quiz-actions { display: flex; gap: 1rem; margin-top: 2rem; }
+
+        .result-block {
+            padding: 1.25rem; border-radius: var(--border-radius); margin-bottom: 1.5rem; border-left-width: 5px; border-left-style: solid;
+        }
+        .result-block.correct { background-color: var(--correct-color); border-left-color: var(--correct-border); }
+        .result-block.incorrect { background-color: var(--incorrect-color); border-left-color: var(--incorrect-border); }
+        .explanation { font-size: 0.95em; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--muted-text-color); color: var(--muted-text-color); }
+        .explanation strong { color: var(--text-color); }
+
+        #summary-box {
+            margin-top: 2.5rem; padding: 1.5rem; border: 1px solid var(--border-color);
+            border-radius: var(--border-radius); background-color: #f8f9fa;
+        }
+        #summary-table-container {
+            max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--border-radius);
+        }
+        #summary-table { width: 100%; border-collapse: collapse; }
+        #summary-table th, #summary-table td { padding: 12px; text-align: center; }
+        #summary-table th {
+            background-color: var(--secondary-color); color: white; position: sticky; top: 0;
+            font-weight: 600;
+        }
+        #summary-table tbody tr:nth-child(even) { background-color: var(--surface-color); }
+        
+        .results-actions { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }
+
+        .hidden { display: none; }
+        .feedback-text { font-size: 0.8rem; text-align: center; margin-top: 0.5rem; color: var(--muted-text-color); }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        <header><h1>Professional Quiz Generator</h1></header>
+
+        <div id="setup-container" class="content-padding">
+            <h2>Quiz Setup</h2>
+            
+            <div>
+                <h3>Option 1: Load from File</h3>
+                <label for="file-input" id="file-input-label" class="styled-button secondary">Select Quiz File (.json)</label>
+                <input type="file" id="file-input" accept=".json" class="hidden">
+            </div>
+
+            <div class="separator">OR</div>
+
+            <div>
+                <h3>Option 2: Paste JSON Data</h3>
+                <textarea id="json-input-area" placeholder="Paste your quiz JSON content here..."></textarea>
+                <button id="start-from-text-btn" class="styled-button">Start Quiz from Text</button>
+            </div>
+
+            <details class="instructions-box">
+                <summary>Instructions & AI Prompt Helper</summary>
+                <div class="instructions-box-content">
+                    <h4>JSON Format Guide</h4>
+                    <p>Your JSON must be an array of objects. Each object represents one question and must have these four keys:</p>
+                    <pre><code>[
+  {
+    "question": "What is the capital of Japan?",
+    "options": ["Beijing", "Seoul", "Tokyo", "Bangkok"],
+    "answer": "Tokyo",
+    "explanation": "Tokyo has been the capital of Japan since 1868."
+  },
+  ...
+]</code></pre>
+                    <hr>
+                    <h4>🤖 AI Prompt Generator</h4>
+                    <p>Copy this prompt into your favorite AI to generate quiz data in the correct format.</p>
+                    <pre id="llm-prompt-text">Generate a 10-question multiple-choice quiz on the topic of [YOUR TOPIC HERE].
+Provide the output in a raw JSON array format. Each object in the array must have exactly these four string keys: "question", "options", "answer", and "explanation".
+- "question": The question text.
+- "options": An array of exactly 4 strings.
+- "answer": The value must be one of the strings from the "options" array.
+- "explanation": A brief, clear explanation for the correct answer.</pre>
+                    <button id="copy-prompt-btn" class="styled-button secondary">Copy AI Prompt</button>
+                    <p class="feedback-text">Note: Copy may not work on mobile if not on a secure (https) site.</p>
+                </div>
+            </details>
+        </div>
+        
+        <div id="quiz-container" class="hidden content-padding">
+            <h2 id="quiz-title">Quiz in Progress</h2>
+            <form id="quiz-form"></form>
+            <div class="quiz-actions">
+                <button id="back-to-setup-btn" class="styled-button tertiary">Back to Setup</button>
+                <button id="submit-btn" class="styled-button">Submit Answers</button>
+            </div>
+        </div>
+
+        <div id="results-container" class="hidden content-padding">
+            <div id="detailed-results"></div>
+            <div id="summary-box">
+                <h3>Answer Summary</h3>
+                <div id="summary-table-container"></div>
+                <div class="results-actions">
+                    <button id="copy-summary-btn" class="styled-button secondary">Copy Simple Summary</button>
+                    <p class="feedback-text">Note: Copy may not work on mobile if not on a secure (https) site.</p>
+                    <button id="restart-btn" class="styled-button">Restart Quiz</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Get all DOM elements ---
+            const setupContainer = document.getElementById('setup-container');
+            const fileInput = document.getElementById('file-input');
+            const jsonInputArea = document.getElementById('json-input-area');
+            const startFromTextBtn = document.getElementById('start-from-text-btn');
+            const copyPromptBtn = document.getElementById('copy-prompt-btn');
+            const llmPromptText = document.getElementById('llm-prompt-text');
+            
+            const quizContainer = document.getElementById('quiz-container');
+            const quizForm = document.getElementById('quiz-form');
+            const backToSetupBtn = document.getElementById('back-to-setup-btn');
+            const submitBtn = document.getElementById('submit-btn');
+
+            const resultsContainer = document.getElementById('results-container');
+            const detailedResultsDiv = document.getElementById('detailed-results');
+            const summaryTableContainer = document.getElementById('summary-table-container');
+            const copySummaryBtn = document.getElementById('copy-summary-btn');
+            const restartBtn = document.getElementById('restart-btn');
+            
+            let currentQuizData = [];
+            let summaryForClipboard = '';
+
+            const indexToLetter = (index) => String.fromCharCode(65 + index);
+
+            // --- Core Functions ---
+
+            /**
+             * Universal robust copy function. Prioritizes modern Clipboard API,
+             * but includes a fallback for non-secure contexts (like file://).
+             * @param {string} textToCopy - The text to be copied.
+             * @param {HTMLElement} buttonElement - The button that triggered the copy.
+             * @param {string} originalText - The original text of the button.
+             */
+            async function copyTextToClipboard(textToCopy, buttonElement, originalText) {
+                // Modern async clipboard API - requires a secure context (https or localhost)
+                if (navigator.clipboard && window.isSecureContext) {
+                    try {
+                        await navigator.clipboard.writeText(textToCopy);
+                        showCopyFeedback(buttonElement, originalText, true);
+                    } catch (err) {
+                        console.error('Async copy failed:', err);
+                        showCopyFeedback(buttonElement, originalText, false);
+                    }
+                } else {
+                    // Fallback for insecure contexts (e.g., file://)
+                    const textArea = document.createElement("textarea");
+                    textArea.value = textToCopy;
+                    textArea.style.position = "fixed"; // Hide element
+                    textArea.style.opacity = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        showCopyFeedback(buttonElement, originalText, true);
+                    } catch (err) {
+                        console.error('Fallback copy failed:', err);
+                        showCopyFeedback(buttonElement, originalText, false);
+                    }
+                    document.body.removeChild(textArea);
+                }
+            }
+            
+            function showCopyFeedback(buttonElement, originalText, success) {
+                buttonElement.textContent = success ? 'Copied!' : 'Copy Failed';
+                if (!success) {
+                    alert('Could not copy text. Your browser may not support this feature on this page (e.g., on a "file://" page). Please copy manually.');
+                }
+                setTimeout(() => {
+                    buttonElement.textContent = originalText;
+                }, 2500);
+            }
+            
+            /**
+             * Parses and validates the JSON data string.
+             * @param {string} jsonDataString - The raw JSON string.
+             */
+            function handleJsonData(jsonDataString) {
+                try {
+                    const data = JSON.parse(jsonDataString);
+                    validateQuizData(data); // Throws an error if invalid
+                    currentQuizData = data;
+                    startQuiz();
+                } catch (error) {
+                    alert('Error: Could not process the JSON data.\n\n' + error.message);
+                    console.error('JSON Processing Error:', error);
+                }
+            }
+            
+            /**
+             * Validates the structure of the parsed quiz data.
+             * @param {Array<Object>} data - The parsed quiz data.
+             */
+            function validateQuizData(data) {
+                if (!Array.isArray(data) || data.length === 0) {
+                    throw new Error("JSON must be a non-empty array of questions.");
+                }
+                for (let i = 0; i < data.length; i++) {
+                    const q = data[i];
+                    const requiredKeys = ["question", "options", "answer", "explanation"];
+                    for (const key of requiredKeys) {
+                        if (!(key in q)) {
+                            throw new Error(`Question ${i + 1} is missing the required key: "${key}".`);
+                        }
+                    }
+                    if (!Array.isArray(q.options) || q.options.length === 0) {
+                         throw new Error(`"options" for Question ${i + 1} must be a non-empty array.`);
+                    }
+                    if (!q.options.includes(q.answer)) {
+                        throw new Error(`The "answer" for Question ${i + 1} ("${q.answer}") is not present in its "options" array.`);
+                    }
+                }
+            }
+
+
+            function startQuiz() {
+                setupContainer.classList.add('hidden');
+                resultsContainer.classList.add('hidden');
+                quizContainer.classList.remove('hidden');
+                buildQuiz();
+            }
+
+            function buildQuiz() {
+                quizForm.innerHTML = ''; // Clear previous quiz
+                currentQuizData.forEach((questionItem, questionIndex) => {
+                    const questionBlock = document.createElement('div');
+                    questionBlock.className = 'question-block';
+                    questionBlock.innerHTML = `
+                        <p class="question-text">${questionIndex + 1}. ${questionItem.question}</p>
+                        <ul class="options-list">
+                            ${questionItem.options.map((option, optionIndex) => `
+                                <li>
+                                    <label for="q${questionIndex}_option${optionIndex}">
+                                        <input type="radio" name="question${questionIndex}" value="${option}" id="q${questionIndex}_option${optionIndex}">
+                                        ${indexToLetter(optionIndex)}. ${option}
+                                    </label>
+                                </li>
+                            `).join('')}
+                        </ul>`;
+                    quizForm.appendChild(questionBlock);
+                });
+            }
+
+            function showResults() {
+                let score = 0;
+                let detailedResultsHTML = '';
+                let summaryTableHTML = '<table id="summary-table"><thead><tr><th>Q#</th><th>Your Answer</th><th>Correct</th></tr></thead><tbody>';
+                let plainTextSummary = `Quiz Summary:\n`;
+
+                currentQuizData.forEach((item, index) => {
+                    const selectedOption = document.querySelector(`input[name="question${index}"]:checked`);
+                    const userAnswerText = selectedOption ? selectedOption.value : null;
+                    const correctAnswerText = item.answer;
+                    const isCorrect = userAnswerText === correctAnswerText;
+
+                    const correctAnswerIndex = item.options.indexOf(correctAnswerText);
+                    const correctAnswerLetter = indexToLetter(correctAnswerIndex);
+                    
+                    let resultBlockClass = 'incorrect';
+                    let userAnswerDisplay = '<em>Not answered</em>';
+                    let summaryAnswerLetter = '—';
+
+                    if (userAnswerText) {
+                        const userAnswerIndex = item.options.indexOf(userAnswerText);
+                        summaryAnswerLetter = indexToLetter(userAnswerIndex);
+                        userAnswerDisplay = `${summaryAnswerLetter}. ${userAnswerText}`;
+                        if (isCorrect) {
+                            score++;
+                            resultBlockClass = 'correct';
+                        }
+                    }
+
+                    summaryTableHTML += `<tr class="${resultBlockClass}"><td>${index + 1}</td><td>${summaryAnswerLetter}</td><td>${correctAnswerLetter}</td></tr>`;
+                    plainTextSummary += `${index + 1}. Your: ${summaryAnswerLetter}, Correct: ${correctAnswerLetter}\n`;
+                    
+                    detailedResultsHTML += `
+                        <div class="result-block ${resultBlockClass}">
+                            <p class="question-text">${index + 1}. ${item.question}</p>
+                            <p><strong>Your answer:</strong> ${userAnswerDisplay}</p>
+                            <p><strong>Correct answer:</strong> ${correctAnswerLetter}. ${correctAnswerText}</p>
+                            <div class="explanation">
+                                <strong>Explanation:</strong> ${item.explanation}
+                            </div>
+                        </div>`;
+                });
+
+                summaryTableHTML += '</tbody></table>';
+                const totalQuestions = currentQuizData.length;
+                const scorePercentage = totalQuestions > 0 ? ((score / totalQuestions) * 100).toFixed(1) : 0;
+                
+                detailedResultsDiv.innerHTML = `<h2>Your Score: ${score} / ${totalQuestions} (${scorePercentage}%)</h2>${detailedResultsHTML}`;
+                summaryTableContainer.innerHTML = summaryTableHTML;
+                summaryForClipboard = plainTextSummary.trim();
+
+                quizContainer.classList.add('hidden');
+                resultsContainer.classList.remove('hidden');
+            }
+            
+            function restartQuiz() {
+                resultsContainer.classList.add('hidden');
+                quizContainer.classList.add('hidden');
+                setupContainer.classList.remove('hidden');
+                
+                // Reset state
+                currentQuizData = [];
+                jsonInputArea.value = '';
+                fileInput.value = ''; // Reset file input
+                quizForm.innerHTML = '';
+            }
+
+            // --- Event Listeners ---
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => handleJsonData(e.target.result);
+                reader.onerror = () => alert('Error reading the file.');
+                reader.readAsText(file);
+            });
+            
+            startFromTextBtn.addEventListener('click', () => {
+                const jsonText = jsonInputArea.value;
+                if (!jsonText.trim()) {
+                    alert('Please paste your JSON data into the text area first.');
+                    return;
+                }
+                handleJsonData(jsonText);
+            });
+            
+            backToSetupBtn.addEventListener('click', () => {
+                if(confirm('Are you sure you want to go back? Your current progress will be lost.')) {
+                    restartQuiz();
+                }
+            });
+
+            submitBtn.addEventListener('click', showResults);
+            
+            restartBtn.addEventListener('click', restartQuiz);
+
+            copyPromptBtn.addEventListener('click', () => {
+                copyTextToClipboard(llmPromptText.textContent, copyPromptBtn, 'Copy AI Prompt');
+            });
+
+            copySummaryBtn.addEventListener('click', () => {
+                copyTextToClipboard(summaryForClipboard, copySummaryBtn, 'Copy Simple Summary');
+            });
+        });
+    </script>
+
+</body>
+</html>
