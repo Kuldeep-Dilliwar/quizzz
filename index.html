@@ -488,7 +488,10 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                     
                     detailedHTML += `
                         <div class="result-block ${resultBlockClass}">
-                            <p class="question-text">${index + 1}. ${item.question}</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <p class="question-text" style="margin: 0; flex-grow: 1;">${index + 1}. ${item.question}</p>
+                                <button class="styled-button tertiary" style="flex-shrink: 0; width: auto; padding: 8px 12px; font-size: 0.8rem; margin-left: 1rem;" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(item.question)}', '_blank')">Search</button>
+                            </div>
                             <p><strong>Your answer:</strong> ${userAnswerDisplay}</p>
                             <p><strong>Correct answer:</strong> ${correctAnswerLetter}. ${correctAnswerText}</p>
                             <div class="explanation">
