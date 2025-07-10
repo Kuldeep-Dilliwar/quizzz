@@ -242,13 +242,24 @@
 ]</code></pre>
                     <hr>
                     <h4>🤖 AI Prompt Generator</h4>
-                    <p>Copy this prompt into your favorite AI to generate quiz data in the correct format.</p>
-                    <pre id="llm-prompt-text">Generate a 10-question multiple-choice quiz on the topic of [YOUR TOPIC HERE].
-Provide the output in a raw JSON array format. Each object in the array must have exactly these four string keys: "question", "options", "answer", and "explanation".
-- "question": The question text.
-- "options": An array of exactly 4 strings.
-- "answer": The value must be one of the strings from the "options" array.
-- "explanation": A brief, clear explanation for the correct answer.</pre>
+                    <p>Use the fields below to customize your prompt, then copy it into your favorite AI to generate quiz data in the correct format.</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <label for="prompt-topic" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Topic</label>
+                            <input type="text" id="prompt-topic" placeholder="e.g., World History" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                        </div>
+                        <div>
+                            <label for="prompt-questions" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Number of Questions</label>
+                            <input type="number" id="prompt-questions" value="10" min="1" max="50" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                        </div>
+                    </div>
+                     <div>
+                        <label for="prompt-field" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Field/Branch (Optional)</label>
+                        <input type="text" id="prompt-field" placeholder="e.g., Ancient Rome, Physics" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); margin-bottom: 1rem;">
+                    </div>
+
+                    <pre id="llm-prompt-text"></pre>
                     <button id="copy-prompt-btn" class="styled-button secondary">Copy AI Prompt</button>
                     <p class="feedback-text">Note: Copy may not work on mobile if not on a secure (https) site.</p>
                 </div>
@@ -303,6 +314,9 @@ Provide the output in a raw JSON array format. Each object in the array must hav
             const startFromTextBtn = document.getElementById('start-from-text-btn');
             const copyPromptBtn = document.getElementById('copy-prompt-btn');
             const llmPromptText = document.getElementById('llm-prompt-text');
+            const promptTopicInput = document.getElementById('prompt-topic');
+            const promptQuestionsInput = document.getElementById('prompt-questions');
+            const promptFieldInput = document.getElementById('prompt-field');
             const showHistoryBtn = document.getElementById('show-history-btn');
             
             const quizContainer = document.getElementById('quiz-container');
@@ -331,6 +345,23 @@ Provide the output in a raw JSON array format. Each object in the array must hav
             const QUIZ_HISTORY_KEY = 'professionalQuizHistory';
 
             const indexToLetter = (index) => String.fromCharCode(65 + index);
+
+            // --- AI Prompt Generation ---
+            function updateLLMPrompt() {
+                const topic = promptTopicInput.value.trim() || '[YOUR TOPIC HERE]';
+                const numQuestions = promptQuestionsInput.value || 10;
+                const field = promptFieldInput.value.trim();
+
+                const fieldText = field ? ` within the specific field of ${field}` : '';
+
+                const prompt = `Generate a ${numQuestions}-question multiple-choice quiz on the topic of ${topic}${fieldText}.
+Provide the output in a raw JSON array format. Each object in the array must have exactly these four string keys: "question", "options", "answer", and "explanation".
+- "question": The question text.
+- "options": An array of exactly 4 strings.
+- "answer": The value must be one of the strings from the "options" array.
+- "explanation": A brief, clear explanation for the correct answer.`;
+                llmPromptText.textContent = prompt;
+            }
 
             // --- Core Functions ---
 
@@ -486,11 +517,14 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                     summaryTable += `<tr class="${resultBlockClass}"><td>${index + 1}</td><td>${summaryAnswerLetter}</td><td>${correctAnswerLetter}</td></tr>`;
                     plainText += `${index + 1}. Your: ${summaryAnswerLetter}, Correct: ${correctAnswerLetter}\n`;
                     
+                    // Escape double quotes for the data-question attribute to prevent breaking the HTML
+                    const escapedQuestion = item.question.replace(/"/g, '&quot;');
+
                     detailedHTML += `
                         <div class="result-block ${resultBlockClass}">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                                 <p class="question-text" style="margin: 0; flex-grow: 1;">${index + 1}. ${item.question}</p>
-                                <button class="styled-button tertiary" style="flex-shrink: 0; width: auto; padding: 8px 12px; font-size: 0.8rem; margin-left: 1rem;" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(item.question)}', '_blank')">Search</button>
+                                <button class="styled-button tertiary search-question-btn" style="flex-shrink: 0; width: auto; padding: 8px 12px; font-size: 0.8rem; margin-left: 1rem;" data-question="${escapedQuestion}">Search</button>
                             </div>
                             <p><strong>Your answer:</strong> ${userAnswerDisplay}</p>
                             <p><strong>Correct answer:</strong> ${correctAnswerLetter}. ${correctAnswerText}</p>
@@ -581,6 +615,10 @@ Provide the output in a raw JSON array format. Each object in the array must hav
             }
 
             // --- Event Listeners ---
+            promptTopicInput.addEventListener('input', updateLLMPrompt);
+            promptQuestionsInput.addEventListener('input', updateLLMPrompt);
+            promptFieldInput.addEventListener('input', updateLLMPrompt);
+
             fileInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
@@ -622,6 +660,18 @@ Provide the output in a raw JSON array format. Each object in the array must hav
                     viewHistoryItem(historyId);
                 }
             });
+
+            document.body.addEventListener('click', (event) => {
+                if (event.target.classList.contains('search-question-btn')) {
+                    const question = event.target.getAttribute('data-question');
+                    if (question) {
+                        window.open(`https://www.google.com/search?q=${encodeURIComponent(question)}`, '_blank');
+                    }
+                }
+            });
+
+            // Initial setup
+            updateLLMPrompt();
         });
     </script>
 
