@@ -258,6 +258,15 @@
                         <label for="prompt-field" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Field/Branch (Optional)</label>
                         <input type="text" id="prompt-field" placeholder="e.g., Ancient Rome, Physics" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); margin-bottom: 1rem;">
                     </div>
+                     <div>
+                        <label for="prompt-difficulty" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Difficulty Level</label>
+                        <select id="prompt-difficulty" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); margin-bottom: 1rem; background-color: white;">
+                            <option value="Easy">Easy</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Hard">Hard</option>
+                            <option value="Competitive Exam">Competitive Exam</option>
+                        </select>
+                    </div>
 
                     <pre id="llm-prompt-text"></pre>
                     <button id="copy-prompt-btn" class="styled-button secondary">Copy AI Prompt</button>
@@ -317,6 +326,7 @@
             const promptTopicInput = document.getElementById('prompt-topic');
             const promptQuestionsInput = document.getElementById('prompt-questions');
             const promptFieldInput = document.getElementById('prompt-field');
+            const promptDifficultyInput = document.getElementById('prompt-difficulty');
             const showHistoryBtn = document.getElementById('show-history-btn');
             
             const quizContainer = document.getElementById('quiz-container');
@@ -351,10 +361,12 @@
                 const topic = promptTopicInput.value.trim() || '[YOUR TOPIC HERE]';
                 const numQuestions = promptQuestionsInput.value || 10;
                 const field = promptFieldInput.value.trim();
+                const difficulty = promptDifficultyInput.value;
 
                 const fieldText = field ? ` within the specific field of ${field}` : '';
+                const difficultyText = ` with a difficulty level of "${difficulty}"`;
 
-                const prompt = `Generate a ${numQuestions}-question multiple-choice quiz on the topic of ${topic}${fieldText}.
+                const prompt = `Generate a ${numQuestions}-question multiple-choice quiz on the topic of ${topic}${fieldText}${difficultyText}.
 Provide the output in a raw JSON array format. Each object in the array must have exactly these four string keys: "question", "options", "answer", and "explanation".
 - "question": The question text.
 - "options": An array of exactly 4 strings.
@@ -618,6 +630,7 @@ Provide the output in a raw JSON array format. Each object in the array must hav
             promptTopicInput.addEventListener('input', updateLLMPrompt);
             promptQuestionsInput.addEventListener('input', updateLLMPrompt);
             promptFieldInput.addEventListener('input', updateLLMPrompt);
+            promptDifficultyInput.addEventListener('change', updateLLMPrompt);
 
             fileInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
